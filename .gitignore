@@ -1,0 +1,4 @@
+/httpserver/.idea
+/httpserver/logs
+/httpserver/venv
+/httpserver/__pycache__

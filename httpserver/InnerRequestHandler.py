@@ -1,105 +1,144 @@
 from http.server import BaseHTTPRequestHandler
-from JsonStorage import JsonStorage
 from TarantoolStorage import TarantoolStorage
+from RequestTimer import RequestTimer
 import json
+import logging
 import re
 
 
 class InnerRequestHandler(BaseHTTPRequestHandler):
   __storage = TarantoolStorage('192.168.99.100', 3301, 'storage')
-#  __storage = JsonStorage()
+  __timer = RequestTimer(requests_per_second=2)
 
   def do_GET(self):
+    logger = logging.getLogger()
+    logger.info(f'GET {self.path}')
+
+    if not self.__accept():
+      return
+
     (isOk, key) = InnerRequestHandler.__extract_key_from_path(self.path)
     if not isOk:
       self.send_error(code=404, message='Path not found', explain=f'Path {self.command} {self.path} not exists')
 
     (isOk, value) = self.__storage.get_value(key)
     if True == isOk:
-      self.send_json_response(200, {'message': 'ok', 'value': value})
+      self.__send_json_response(200, {'key': key, 'value': value})
     else:
       self.send_error(code=404, message='Record not found', explain=f'Record with a key "{key}" not found in storage')
 
   def do_POST(self):
+    body = self.__get_body()
+    logger = logging.getLogger()
+    logger.info(f'POST {self.path} {body}')
+
+    if not self.__accept():
+      return
+
     if not InnerRequestHandler.__validate_path(self.path):
       self.send_error(code=404, message='Path not found', explain=f'Path {self.command} {self.path} not exists')
       return
 
-    body = self.get_body()
     values = {}
     try:
       values = json.loads(body, encoding='utf-8')
     except Exception as exc:
-      self.send_json_response(400, {'message': f'Ivalid json body: {str(exc)}'})
+      self.send_error(code=400, message='Invalid json body', explain=str(exc))
       return
 
     for it in ["key", "value"]:
       if not it in values.keys():
-        self.send_json_response(400, {'message': f'Missing "{it}" in incoming json'})
+        self.send_error(code=400, message='Invalid json body', explain=f'Missing "{it}" section in source json')
         return
 
     key = values["key"]
-    isOk = self.__storage.add_value(key, values["value"])
+    (isOk, message) = self.__storage.add_value(key, values["value"])
     if not isOk:
-      self.send_json_response(409, {'message': f'Value with a key "{key}" already exists'})
+      self.send_error(code=409, message=f'Cannot add key "{key}"', explain=message)
       return
 
-    self.send_json_response(200, {'message': f'Value with a key "{key}" successfully added'})
+    self.__send_json_response(200, {'message': f'Value with key "{key}" successfully added'})
 
   def do_PUT(self):
+    body = self.__get_body()
+    logger = logging.getLogger()
+    logger.info(f'PUT {self.path} {body}')
+
+    if not self.__accept():
+      return
+
     (isOk, key) = InnerRequestHandler.__extract_key_from_path(self.path)
     if not isOk:
       self.send_error(code=404, message='Path not found', explain=f'Path {self.command} {self.path} not exists')
       return
 
-    body = self.get_body()
-    values = {}
-    try:
-      values = json.loads(body, encoding='utf-8')
-    except Exception as exc:
-      self.send_json_response(400, {'message': f'Ivalid json body: {str(exc)}'})
-      return
-
-    if not self.__storage.check_key_exist(key):
-      self.send_error(code=404, message='Record not found', explain=f'Record with a key "{key}" not found in storage')
+    (isOk, values, errorMsg) = InnerRequestHandler.__parse_json_body(body=body)
+    if not isOk:
+      self.send_error(code=400, message='Invalid json body', explain=errorMsg)
       return
 
     for it in ["value"]:
       if not it in values.keys():
-        self.send_json_response(400, {'message': f'Missing "{it}" in incoming json'})
+        self.send_error(code=400, message='Invalid json body', explain=f'Missing "{it}" section in source json')
         return
 
-    if not self.__storage.alter_value(key, values["value"]):
-      self.send_json_response(409, {'message': f'Cannot alter value with a key "{key}"'})
+    (isOk, message) = self.__storage.alter_value(key, values["value"])
+    if not isOk:
+      self.send_error(409, message=f'Cannot alter value with key "{key}"', explain=message)
       return
-    self.send_json_response(200, {'message': f'Value with a key "{key}" changed'})
+    self.__send_json_response(200, {'message': f'Value with key "{key}" changed'})
 
   def do_DELETE(self):
+    logger = logging.getLogger()
+    logger.info(f'DELETE {self.path}')
+
+    if not self.__accept():
+      return
+
     (isOk, key) = InnerRequestHandler.__extract_key_from_path(self.path)
     if not isOk:
       self.send_error(code=404, message='Path not found', explain=f'Path {self.command} {self.path} not exists')
       return
 
-    if not self.__storage.check_key_exist(key):
-      self.send_error(code=404, message='Record not found', explain=f'Record with a key "{key}" not found in storage')
+    (isOk, message) = self.__storage.delete(key)
+    if not isOk:
+      self.send_error(code=409, message=f'Cannot delete key "{key}"', explain=message)
       return
 
-    if not self.__storage.delete(key):
-      self.send_json_response(409, {'message': f'Cannot remove value with a key "{key}" from storage'})
-      return
+    self.__send_json_response(200, {'message': f'Value with a key "{key}" deleted'})
 
-    self.send_json_response(200, {'message': f'Value with a key "{key}" deleted'})
-
-  def get_body(self):
+  def __get_body(self):
     content_len = int(self.headers.get('Content-Length'))
     return self.rfile.read(content_len)
 
-  def send_json_response(self, code, json_values):
+  def __send_json_response(self, code, json_values):
+    logger = logging.getLogger()
+    logger.info(f'code: {code}; {json_values}')
     response_body = json.dumps(json_values).encode(encoding='utf-8')
     self.send_response(code=code)
     self.send_header('Content-Type', 'application/json')
     self.end_headers()
     self.wfile.write(response_body)
+
+  def __accept(self):
+    if not self.__timer.accept():
+      self.send_error(code=429, message='Exceeded requests per second count')
+      return False
+    return True
+
+  def send_error(self, code, message, explain):
+    logger = logging.getLogger()
+    logger.warning(f'code: {code}; message: {message}; explain: {explain}')
+    super().send_error(code=code, message=message, explain=explain)
+
+  @staticmethod
+  def __parse_json_body(body):
+    values = {}
+    try:
+      values = json.loads(body, encoding='utf-8')
+    except Exception as exc:
+      return (False, {}, str(exc))
+    return (True, values, '')
 
   @staticmethod
   def __validate_path(path):

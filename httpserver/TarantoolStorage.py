@@ -14,26 +14,29 @@ class TarantoolStorage():
     return (False, None)
 
   def add_value(self, key, value):
-    if True == self.check_key_exist(key):
-      return False
-
-    k = self.__space.insert((key, value))
-    return True
+    try:
+      self.__space.insert((key, value))
+      return (True, '')
+    except tarantool.error.DatabaseError as err:
+      return (False, err.args[1])
 
   def alter_value(self, key, value):
-    if False == self.check_key_exist(key):
-      return False
+    try:
+      result = self.__space.update(key, [('=', 1, value)])
+      if 0 == len(result.data):
+        return (False, f'Value with key "{key}" not exists')
 
-    self.__space.replace((key, value))
-    return True
+      return (True, '')
+    except tarantool.error.DatabaseError as err:
+      return (False, err.args[1])
 
   def delete(self, key):
-    if False == self.check_key_exist(key):
-      return False
+    result = self.__space.delete(key)
+    if 0 == len(result.data):
+      return (False, f'Value with key "{key}" not exists')
 
-    self.__space.delete(key)
-    return True
+    return (True, '')
 
   def check_key_exist(self, key):
-    resp = self.__space.select(key)
-    return 0 != len(resp.data)
+    result = self.__space.select(key)
+    return 0 != len(result.data)
