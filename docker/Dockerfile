@@ -1,4 +1,8 @@
-from ubuntu:bionic
+FROM tarantool/tarantool:2.2.0 as tarantool
+COPY scripts/init.lua /opt/tarantool
+CMD ["tarantool", "/opt/tarantool/init.lua"]
+
+FROM ubuntu:bionic
 
 MAINTAINER Alexander Burtasov "pvt.pyle1983@gmail.com"
 
@@ -31,9 +35,5 @@ RUN chmod ugo+x /home/tarantool/httpserver/run.sh && \
     chmod ugo-x /home/tarantool/httpserver/TarantoolStorage.py && \
     pip3 install -r /home/tarantool/httpserver/requirements.txt
 
-#CMD waitress-serve --host=0.0.0.0 --port=5052 flasky:app
-#CMD python runserver.py
-#ENTRYPOINT ["python3"]
-#CMD ["runserver.py"]
 EXPOSE 5052
 ENTRYPOINT ["/bin/bash", "run.sh"]

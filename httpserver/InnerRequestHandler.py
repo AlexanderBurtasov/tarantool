@@ -7,7 +7,8 @@ import re
 
 
 class InnerRequestHandler(BaseHTTPRequestHandler):
-  __storage = TarantoolStorage('192.168.99.100', 3301, 'storage')
+#  __storage = TarantoolStorage('192.168.99.100', 3301, 'storage')
+  __storage = TarantoolStorage('0.0.0.0', 3301, 'storage')
   __timer = RequestTimer(requests_per_second=2)
 
   def do_GET(self):
