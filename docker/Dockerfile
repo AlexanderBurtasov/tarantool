@@ -1,26 +1,39 @@
-FROM ubuntu:bionic
+from ubuntu:bionic
 
-# install these utilities if they are missing
-RUN apt-get -y install sudo && \
-    sudo apt-get -y install gnupg2 && \
-    sudo apt-get -y install curl
+MAINTAINER Alexander Burtasov "pvt.pyle1983@gmail.com"
 
-RUN curl https://download.tarantool.org/tarantool/2.2/gpgkey | sudo apt-key add -
+RUN apt-get update -y && \
+    apt-get install -y python3-dev && \
+    apt-get install -y python3-pip && \
+    apt-get install -y mc
 
-# install the lsb-release utility and use it to identify the current OS code name;
-# alternatively, you can set the OS code name manually, e.g. stretch
-RUN apt-get -y install lsb-release && \
-    release=`lsb_release -c -s`
+RUN mkdir /home/tarantool && \
+    mkdir /home/tarantool/httpserver && \
+    mkdir /home/tarantool/httpserver/logs
 
-# install https download transport for APT
-RUN apt-get -y install apt-transport-https
+COPY ./httpserver/run.sh /home/tarantool/httpserver/run.sh
+COPY ./httpserver/InnerRequestHandler.py /home/tarantool/httpserver/InnerRequestHandler.py
+COPY ./httpserver/logutils.py /home/tarantool/httpserver/logutils.py
+COPY ./httpserver/main.py /home/tarantool/httpserver/main.py
+COPY ./httpserver/RequestTimer.py /home/tarantool/httpserver/RequestTimer.py
+COPY ./httpserver/requirements.txt /home/tarantool/httpserver/requirements.txt
+COPY ./httpserver/TarantoolStorage.py /home/tarantool/httpserver/TarantoolStorage.py
 
-# append two lines to a list of source repositories
-RUN sudo rm -f /etc/apt/sources.list.d/*tarantool*.list && \
-    echo "deb https://download.tarantool.org/tarantool/2.2/ubuntu/ ${release} main" | sudo tee /etc/apt/sources.list.d/tarantool_2_2.list && \
-    echo "deb-src https://download.tarantool.org/tarantool/2.2/ubuntu/ ${release} main" | sudo tee -a /etc/apt/sources.list.d/tarantool_2_2.list
+ENV PYTHONPATH /home/tarantool/httpserver
+WORKDIR /home/tarantool/httpserver
 
-# install tarantool
-RUN sudo apt-get -y update && \
-    sudo apt-get -y install tarantool
+RUN chmod ugo+x /home/tarantool/httpserver/run.sh && \
+    chmod ugo-x /home/tarantool/httpserver/InnerRequestHandler.py && \
+    chmod ugo-x /home/tarantool/httpserver/logutils.py && \
+    chmod ugo-x /home/tarantool/httpserver/main.py && \
+    chmod ugo-x /home/tarantool/httpserver/RequestTimer.py && \
+    chmod ugo-x /home/tarantool/httpserver/requirements.txt && \
+    chmod ugo-x /home/tarantool/httpserver/TarantoolStorage.py && \
+    pip3 install -r /home/tarantool/httpserver/requirements.txt
 
+#CMD waitress-serve --host=0.0.0.0 --port=5052 flasky:app
+#CMD python runserver.py
+#ENTRYPOINT ["python3"]
+#CMD ["runserver.py"]
+EXPOSE 5052
+ENTRYPOINT ["/bin/bash", "run.sh"]

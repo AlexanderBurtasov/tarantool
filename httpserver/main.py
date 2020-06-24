@@ -5,7 +5,7 @@ import logutils
 def main():
   logutils.initLogger('logs')
 
-  httpd = HTTPServer(('localhost', 5052), InnerRequestHandler)
+  httpd = HTTPServer(('0.0.0.0', 5052), InnerRequestHandler)
   httpd.serve_forever()
 
   return 0
