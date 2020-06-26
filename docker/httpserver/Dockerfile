@@ -1,8 +1,5 @@
-FROM tarantool/tarantool:2.2.0 as tarantool
-COPY scripts/init.lua /opt/tarantool
-CMD ["tarantool", "/opt/tarantool/init.lua"]
-
-FROM ubuntu:bionic
+#FROM ubuntu:bionic
+FROM python:latest
 
 MAINTAINER Alexander Burtasov "pvt.pyle1983@gmail.com"
 
