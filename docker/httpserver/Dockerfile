@@ -1,4 +1,3 @@
-#FROM ubuntu:bionic
 FROM python:latest
 
 MAINTAINER Alexander Burtasov "pvt.pyle1983@gmail.com"
@@ -13,6 +12,7 @@ RUN mkdir /home/tarantool && \
     mkdir /home/tarantool/httpserver/logs
 
 COPY ./httpserver/run.sh /home/tarantool/httpserver/run.sh
+COPY ./httpserver/defaults.py /home/tarantool/httpserver/defaults.py
 COPY ./httpserver/InnerRequestHandler.py /home/tarantool/httpserver/InnerRequestHandler.py
 COPY ./httpserver/logutils.py /home/tarantool/httpserver/logutils.py
 COPY ./httpserver/main.py /home/tarantool/httpserver/main.py
@@ -25,6 +25,7 @@ WORKDIR /home/tarantool/httpserver
 
 RUN chmod ugo+x /home/tarantool/httpserver/run.sh && \
     chmod ugo-x /home/tarantool/httpserver/InnerRequestHandler.py && \
+    chmod ugo-x /home/tarantool/httpserver/defaults.py && \  
     chmod ugo-x /home/tarantool/httpserver/logutils.py && \
     chmod ugo-x /home/tarantool/httpserver/main.py && \
     chmod ugo-x /home/tarantool/httpserver/RequestTimer.py && \
@@ -32,5 +33,5 @@ RUN chmod ugo+x /home/tarantool/httpserver/run.sh && \
     chmod ugo-x /home/tarantool/httpserver/TarantoolStorage.py && \
     pip3 install -r /home/tarantool/httpserver/requirements.txt
 
-EXPOSE 5052
+#EXPOSE 5052
 ENTRYPOINT ["/bin/bash", "run.sh"]

@@ -1,15 +1,13 @@
 from http.server import BaseHTTPRequestHandler
 from TarantoolStorage import TarantoolStorage
 from RequestTimer import RequestTimer
+from defaults import Defaults
 import json
 import logging
 import re
 
 
 class InnerRequestHandler(BaseHTTPRequestHandler):
-#  __storage = TarantoolStorage('192.168.99.100', 3301, 'storage')
-  __storage = TarantoolStorage('0.0.0.0', 3301, 'storage')
-  __timer = RequestTimer(requests_per_second=2)
 
   def do_GET(self):
     logger = logging.getLogger()
@@ -22,7 +20,7 @@ class InnerRequestHandler(BaseHTTPRequestHandler):
     if not isOk:
       self.send_error(code=404, message='Path not found', explain=f'Path {self.command} {self.path} not exists')
 
-    (isOk, value) = self.__storage.get_value(key)
+    (isOk, value) = self.server.bugStorage.get_value(key)
     if True == isOk:
       self.__send_json_response(200, {'key': key, 'value': value})
     else:
@@ -30,6 +28,7 @@ class InnerRequestHandler(BaseHTTPRequestHandler):
 
   def do_POST(self):
     body = self.__get_body()
+
     logger = logging.getLogger()
     logger.info(f'POST {self.path} {body}')
 
@@ -53,7 +52,7 @@ class InnerRequestHandler(BaseHTTPRequestHandler):
         return
 
     key = values["key"]
-    (isOk, message) = self.__storage.add_value(key, values["value"])
+    (isOk, message) = self.server.bugStorage.add_value(key, values["value"])
     if not isOk:
       self.send_error(code=409, message=f'Cannot add key "{key}"', explain=message)
       return
@@ -83,9 +82,9 @@ class InnerRequestHandler(BaseHTTPRequestHandler):
         self.send_error(code=400, message='Invalid json body', explain=f'Missing "{it}" section in source json')
         return
 
-    (isOk, message) = self.__storage.alter_value(key, values["value"])
+    (isOk, message) = self.server.bugStorage.alter_value(key, values["value"])
     if not isOk:
-      self.send_error(409, message=f'Cannot alter value with key "{key}"', explain=message)
+      self.send_error(404, message=f'Cannot alter value with key "{key}"', explain=message)
       return
     self.__send_json_response(200, {'message': f'Value with key "{key}" changed'})
 
@@ -101,9 +100,9 @@ class InnerRequestHandler(BaseHTTPRequestHandler):
       self.send_error(code=404, message='Path not found', explain=f'Path {self.command} {self.path} not exists')
       return
 
-    (isOk, message) = self.__storage.delete(key)
+    (isOk, message) = self.server.bugStorage.delete(key)
     if not isOk:
-      self.send_error(code=409, message=f'Cannot delete key "{key}"', explain=message)
+      self.send_error(code=404, message=f'Cannot delete key "{key}"', explain=message)
       return
 
     self.__send_json_response(200, {'message': f'Value with a key "{key}" deleted'})
@@ -122,8 +121,8 @@ class InnerRequestHandler(BaseHTTPRequestHandler):
     self.wfile.write(response_body)
 
   def __accept(self):
-    if not self.__timer.accept():
-      self.send_error(code=429, message='Exceeded requests per second count')
+    if not self.server.requestTimer.accept():
+      self.send_error(code=429, message='Too many requests', explain='Requests per second count exceeded')
       return False
     return True
 

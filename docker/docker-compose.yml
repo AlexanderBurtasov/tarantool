@@ -1,0 +1,24 @@
+version: "3.2"
+
+services:
+  bugdb:
+    container_name: bugdb
+    image: bugdb:0.9
+    ports:
+      - "3313:3313"
+  httpserver:
+    image: httpserver:0.9
+    container_name: httpserver
+    tty: true
+    stdin_open: true
+    privileged: true
+    ports:
+      - "5052:5052"
+    depends_on:
+      - bugdb
+    environment:
+      - SERVER_URL=0.0.0.0
+      - SERVER_PORT=5052
+      - TARANTOOL_URL=bugdb
+      - TARANTOOL_PORT=3313
+      - REQUEST_PER_SECOND=4
