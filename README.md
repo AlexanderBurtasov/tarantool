@@ -5,31 +5,34 @@
 
 ## Build docker images
   Call script:
-  ```bash
+  ```sh
   build_images.sh
   ```
   Если все получилось, то должны появиться 2 image: **httpserver:0.9** и **bugdb:0.9**.
 
 ## Run images
   Call script: 
-  ```bash
+  ```sh
   run_images.sh
   ```
   Если все получилось, то наш http-server будет доступен через **порт 5502**. По умолчанию сервер настроен на обработку **4** запросов в секунду.
 
 ## Change settings
-  Файл: docker/docker-compose.yml
-  Можно менять значения:
-    - serveces/httpserver/SERVER_PORT - порт, который мониторит httpserver
-    - services/httpserver/REQUEST_PER_SECOND - задает максимальное количество обрабатываемых в секунду запросов.
-  Остальные значения я бы не менял: отвалится контейнер с tarantool или еще что-нибудь.
+Файл: **docker/docker-compose.yml**.
+Можно менять значения:
+  - services/httpserver/SERVER_PORT - порт, который мониторит httpserver
+  - services/httpserver/REQUEST_PER_SECOND - задает максимальное количество обрабатываемых в секунду запросов.
+Остальные значения я бы не менял: отвалится контейнер с tarantool или еще что-нибудь.
   
 ## Request examples
-  GET value with key id_0:
+  * GET value with key id_0:
+  ```curl
 curl --request GET \
   --url http://192.168.99.100:5052/kv/id_0
-  
-  CREATE record with key id_0
+  ```
+
+  * CREATE record with key id_0
+  ```sh
 curl --request POST \
   --url http://192.168.99.100:5052/kv \
   --header 'content-type: application/json' \
@@ -40,9 +43,10 @@ curl --request POST \
 		"year": 1996
 	}
 }'
+```
 
-  
-  ALTER value with key id_0
+  * ALTER value with key id_0
+  ```sh
 curl --request PUT \
   --url http://192.168.99.100:5052/kv/id_0 \
   --header 'content-type: application/json' \
@@ -53,11 +57,13 @@ curl --request PUT \
 	}
 }
 '
-  
+```
 
-  DELETE record with key id_0
+  * DELETE record with key id_0
+  ```sh
 curl --request DELETE \
   --url http://192.168.99.100:5052/kv/id_0
+  ```
 
 ## Комментарии к заданию
 1) скачать/собрать тарантул -- **скачал и собрал. Правда, docker-образ tarantool делал не на основе сборки, а на основе существующего образа**
