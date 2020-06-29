@@ -21,4 +21,4 @@ services:
       - SERVER_PORT=5052
       - TARANTOOL_URL=bugdb
       - TARANTOOL_PORT=3313
-      - REQUEST_PER_SECOND=4
+      - REQUEST_PER_SECOND=50
